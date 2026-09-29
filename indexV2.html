@@ -1,0 +1,543 @@
+```html
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>5×5 Matrix Generator</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: #111;
+    color: white;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+
+.container {
+    width: 100%;
+    max-width: 500px;
+    margin: auto;
+    background: #1c1c1c;
+    border-radius: 16px;
+    padding: 25px;
+    box-shadow: 0 0 30px rgba(0,0,0,.5);
+}
+
+h1 {
+    text-align: center;
+    margin-top: 0;
+    font-size: 25px;
+}
+
+h2 {
+    font-size: 18px;
+    margin-top: 30px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    width: min(250px, 80vw);
+    margin: 20px auto;
+}
+
+.cell {
+    aspect-ratio: 1;
+    border: none;
+    border-radius: 5px;
+    background: #333;
+    cursor: pointer;
+    transition: .1s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.cell.active {
+    background: white;
+}
+
+button {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#generate {
+    background: #5865f2;
+    color: white;
+}
+
+#clear {
+    background: #333;
+    color: white;
+}
+
+#copy {
+    background: #44c767;
+    color: white;
+}
+
+#export {
+    background: #ff9f43;
+    color: #111;
+}
+
+#clearHistory {
+    background: #d63031;
+    color: white;
+}
+
+#output {
+    width: 100%;
+    margin-top: 15px;
+    padding: 12px;
+    border: 1px solid #444;
+    border-radius: 8px;
+    background: #0b0b0b;
+    color: #00ff88;
+    font-family: monospace;
+    font-size: 15px;
+    text-align: center;
+    overflow-x: auto;
+    white-space: nowrap;
+    user-select: all;
+}
+
+.controls {
+    text-align: center;
+}
+
+.history {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.history-matrix {
+    flex: 1;
+    margin: 0;
+    background: #292929;
+    color: #00ff88;
+    font-family: monospace;
+    text-align: left;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.history-delete {
+    margin: 0;
+    padding: 10px 12px;
+    background: #333;
+    color: #ff6b6b;
+}
+
+.empty {
+    color: #777;
+    text-align: center;
+    font-size: 14px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>5×5 Matrix Generator</h1>
+
+    <!-- GRILLE -->
+    <div class="grid" id="grid"></div>
+
+    <!-- BOUTONS -->
+    <div class="controls">
+        <button id="generate">Générer</button>
+        <button id="clear">Effacer</button>
+        <button id="copy">Copier</button>
+    </div>
+
+    <!-- SORTIE -->
+    <div id="output">
+        0000000000000000000000000
+    </div>
+
+    <!-- HISTORIQUE -->
+    <h2>Historique</h2>
+
+    <div class="history" id="history"></div>
+
+    <div class="controls">
+        <button id="export">Exporter en TXT</button>
+        <button id="clearHistory">Vider l'historique</button>
+    </div>
+
+</div>
+
+<script>
+
+const grid = document.getElementById("grid");
+const output = document.getElementById("output");
+const historyElement = document.getElementById("history");
+
+const cells = [];
+
+/* =========================
+   CRÉATION DE LA GRILLE
+========================= */
+
+for (let i = 0; i < 25; i++) {
+
+    const cell = document.createElement("button");
+
+    cell.className = "cell";
+
+    cell.addEventListener("click", () => {
+        cell.classList.toggle("active");
+    });
+
+    grid.appendChild(cell);
+    cells.push(cell);
+}
+
+
+/* =========================
+   RÉCUPÉRER LA MATRICE
+========================= */
+
+function getMatrix() {
+
+    let result = "";
+
+    cells.forEach(cell => {
+
+        result += cell.classList.contains("active")
+            ? "1"
+            : "0";
+
+    });
+
+    return result;
+}
+
+
+/* =========================
+   AFFICHER LA MATRICE
+========================= */
+
+function generateMatrix(addToHistory = true) {
+
+    const matrix = getMatrix();
+
+    output.textContent = matrix;
+
+    if (addToHistory) {
+        addToHistoryList(matrix);
+    }
+}
+
+
+/* =========================
+   HISTORIQUE
+========================= */
+
+let history = JSON.parse(
+    localStorage.getItem("matrixHistory") || "[]"
+);
+
+
+function saveHistory() {
+
+    localStorage.setItem(
+        "matrixHistory",
+        JSON.stringify(history)
+    );
+
+}
+
+
+function addToHistoryList(matrix) {
+
+    history.unshift(matrix);
+
+    saveHistory();
+
+    renderHistory();
+
+}
+
+
+function renderHistory() {
+
+    historyElement.innerHTML = "";
+
+    if (history.length === 0) {
+
+        const empty = document.createElement("div");
+
+        empty.className = "empty";
+
+        empty.textContent = "Aucune matrice générée.";
+
+        historyElement.appendChild(empty);
+
+        return;
+    }
+
+
+    history.forEach((matrix, index) => {
+
+        const item = document.createElement("div");
+
+        item.className = "history-item";
+
+
+        /* Bouton matrice */
+
+        const matrixButton = document.createElement("button");
+
+        matrixButton.className = "history-matrix";
+
+        matrixButton.textContent = matrix;
+
+
+        matrixButton.addEventListener("click", () => {
+
+            loadMatrix(matrix);
+
+        });
+
+
+        /* Bouton supprimer */
+
+        const deleteButton = document.createElement("button");
+
+        deleteButton.className = "history-delete";
+
+        deleteButton.textContent = "×";
+
+        deleteButton.title = "Supprimer";
+
+
+        deleteButton.addEventListener("click", () => {
+
+            history.splice(index, 1);
+
+            saveHistory();
+
+            renderHistory();
+
+        });
+
+
+        item.appendChild(matrixButton);
+
+        item.appendChild(deleteButton);
+
+        historyElement.appendChild(item);
+
+    });
+
+}
+
+
+/* =========================
+   CHARGER UNE MATRICE
+========================= */
+
+function loadMatrix(matrix) {
+
+    cells.forEach((cell, index) => {
+
+        if (matrix[index] === "1") {
+            cell.classList.add("active");
+        } else {
+            cell.classList.remove("active");
+        }
+
+    });
+
+    output.textContent = matrix;
+
+}
+
+
+/* =========================
+   EFFACER LA GRILLE
+========================= */
+
+document.getElementById("clear").addEventListener(
+    "click",
+    () => {
+
+        cells.forEach(cell => {
+            cell.classList.remove("active");
+        });
+
+        output.textContent =
+            "0000000000000000000000000";
+
+    }
+);
+
+
+/* =========================
+   GÉNÉRER
+========================= */
+
+document.getElementById("generate").addEventListener(
+    "click",
+    () => {
+
+        generateMatrix(true);
+
+    }
+);
+
+
+/* =========================
+   COPIER
+========================= */
+
+document.getElementById("copy").addEventListener(
+    "click",
+    async () => {
+
+        const matrix = getMatrix();
+
+        output.textContent = matrix;
+
+        try {
+
+            await navigator.clipboard.writeText(matrix);
+
+            const button =
+                document.getElementById("copy");
+
+            const oldText = button.textContent;
+
+            button.textContent = "Copié !";
+
+            setTimeout(() => {
+                button.textContent = oldText;
+            }, 1000);
+
+        } catch {
+
+            alert(
+                "Impossible de copier automatiquement."
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================
+   EXPORT TXT
+========================= */
+
+document.getElementById("export").addEventListener(
+    "click",
+    () => {
+
+        if (history.length === 0) {
+
+            alert("L'historique est vide.");
+
+            return;
+
+        }
+
+
+        /*
+         Chaque matrice est sur sa propre ligne.
+        */
+
+        const content = history.join("\n");
+
+        const blob = new Blob(
+            [content],
+            {
+                type: "text/plain;charset=utf-8"
+            }
+        );
+
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+
+        link.href = url;
+
+        link.download = "matrices_5x5.txt";
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+
+    }
+);
+
+
+/* =========================
+   VIDER L'HISTORIQUE
+========================= */
+
+document.getElementById("clearHistory").addEventListener(
+    "click",
+    () => {
+
+        if (history.length === 0) return;
+
+
+        if (
+            confirm(
+                "Voulez-vous vraiment supprimer tout l'historique ?"
+            )
+        ) {
+
+            history = [];
+
+            saveHistory();
+
+            renderHistory();
+
+        }
+
+    }
+);
+
+
+/* =========================
+   INITIALISATION
+========================= */
+
+renderHistory();
+
+</script>
+
+</body>
+</html>
+```
